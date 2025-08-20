@@ -139,14 +139,15 @@ func (w *WSReverseProxy) ServeHTTP(ctx *fasthttp.RequestCtx) {
 				message = "websocketproxy: Error when copying response: %v"
 			case err = <-errBackend:
 				message = "websocketproxy: Error when copying request: %v"
+				if _, ok := err.(*websocket.CloseError); ok {
+					//通知调用方上下文
+					ctx.UserValue("cancelFunc").(context.CancelFunc)()
+				}
 			}
 
 			// log error except '*websocket.CloseError'
 			if _, ok := err.(*websocket.CloseError); !ok {
 				errorF(w.option.logger, "websocketproxy: error when copying %s: %v", message, err)
-			} else {
-				//通知调用方上下文
-				ctx.UserValue("cancelFunc").(context.CancelFunc)()
 			}
 		}
 	})
