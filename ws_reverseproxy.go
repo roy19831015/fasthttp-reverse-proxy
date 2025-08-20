@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"net"
 	"net/http"
@@ -132,7 +133,6 @@ func (w *WSReverseProxy) ServeHTTP(ctx *fasthttp.RequestCtx) {
 
 		go replicateWebsocketConn(w.option.logger, connPub, connBackend, errClient)  // response
 		go replicateWebsocketConn(w.option.logger, connBackend, connPub, errBackend) // request
-
 		for {
 			select {
 			case err = <-errClient:
@@ -144,6 +144,9 @@ func (w *WSReverseProxy) ServeHTTP(ctx *fasthttp.RequestCtx) {
 			// log error except '*websocket.CloseError'
 			if _, ok := err.(*websocket.CloseError); !ok {
 				errorF(w.option.logger, "websocketproxy: error when copying %s: %v", message, err)
+			} else {
+				//通知调用方上下文
+				ctx.UserValue("cancelFunc").(context.CancelFunc)()
 			}
 		}
 	})
