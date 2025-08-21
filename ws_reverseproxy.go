@@ -159,6 +159,7 @@ func (w *WSReverseProxy) ServeHTTP(ctx *fasthttp.RequestCtx) {
 				var e *websocket.CloseError
 				if errors.As(err, &e) && 1000 <= e.Code && e.Code <= 1015 {
 					//通知调用方上下文
+					errClient <- err
 					ctx.UserValue("cancelFunc").(context.CancelFunc)()
 					return
 				}
