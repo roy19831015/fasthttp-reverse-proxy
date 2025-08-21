@@ -3,6 +3,7 @@ package proxy
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"net"
 	"net/http"
@@ -137,14 +138,19 @@ func (w *WSReverseProxy) ServeHTTP(ctx *fasthttp.RequestCtx) {
 			select {
 			case err = <-errClient:
 				message = "websocketproxy: Error when copying response: %v"
+				//如果连接关闭
+				var e *websocket.CloseError
+				if errors.As(err, &e) && 1000 <= e.Code && e.Code <= 1015 {
+					return
+				}
 			case err = <-errBackend:
 				message = "websocketproxy: Error when copying request: %v"
 				//如果连接关闭
-				if websocket.IsCloseError(err, websocket.CloseNormalClosure) ||
-					websocket.IsCloseError(err, websocket.CloseGoingAway) ||
-					websocket.IsCloseError(err, websocket.CloseNoStatusReceived) {
+				var e *websocket.CloseError
+				if errors.As(err, &e) && 1000 <= e.Code && e.Code <= 1015 {
 					//通知调用方上下文
 					ctx.UserValue("cancelFunc").(context.CancelFunc)()
+					return
 				}
 			}
 
